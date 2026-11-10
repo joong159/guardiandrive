@@ -1,0 +1,86 @@
+package ai.guardiandrive.app
+
+/*
+ * ===== 실제 차량/에뮬레이터 연결부 (Pleos Connect SDK 필요) =====
+ *
+ * SDK 의존성을 넣기 전에는 빌드가 안 되므로 확장자를 .kt.sdk 로 두었습니다.
+ * SDK를 추가한 뒤 PleosSource.kt 로 이름을 바꾸고, TODO 표시된 호출을 실제 API 이름으로 채우세요.
+ *
+ * 공모전 허용 SDK만 사용 (ADAS는 허용될 때만 켜짐):
+ *   Vehicle SDK       → 속도, 브레이크, 방향지시등(TurnSignal API), 비상등(Light API), 조향각(SteeringWheel API)
+ *   FusedLocation SDK → 위도·경도
+ *   NaviHelper SDK    → 도로 이름, 고속도로 여부, 제한속도
+ *   SpeechToText SDK  → 운전자 음성 ("괜찮아", "도와줘", "사고 났어")
+ *   TextToSpeech SDK  → 안내 음성 (MainActivity의 Speaker)
+ */
+
+import ai.guardiandrive.core.*
+import android.content.Context
+import android.os.Handler
+import android.os.Looper
+
+class PleosSource(
+    private val context: Context,
+    /** ADAS 사용이 허용되면 true */
+    private val useAdas: Boolean = false,
+) : DrivingSource {
+    private val handler = Handler(Looper.getMainLooper())
+
+    // SDK 콜백이 최신 값을 써두고, 1초마다 한 장으로 묶음
+    @Volatile private var speedKph = 0.0
+    @Volatile private var brake = false
+    @Volatile private var signal: Direction? = null
+    @Volatile private var hazard = false
+    @Volatile private var trunk = false
+    @Volatile private var steering = 0.0
+    @Volatile private var lat: Double? = null
+    @Volatile private var lon: Double? = null
+    @Volatile private var roadName: String? = null
+    @Volatile private var roadType = RoadType.URBAN
+    @Volatile private var speedLimit: Double? = null
+    @Volatile private var adas: AdasFrame? = null
+
+    override fun start(onSnapshot: (Snapshot) -> Unit, onVoice: (String) -> Unit) {
+        // TODO Vehicle SDK: 속도
+        //   vehicle.registerSpeedCallback { kph -> speedKph = kph }
+        // TODO Vehicle SDK: 브레이크
+        //   vehicle.brake.registerCallback { pressed -> brake = pressed }
+        // TODO Vehicle SDK: 방향지시등 (왼쪽/오른쪽/비상등 구분)
+        //   vehicle.turnSignal.registerCallback { state -> signal = ...; hazard = ... }
+        // TODO Vehicle SDK: 트렁크 (Door 도메인, CAR_DOORS) — 시작하기 예제의 getDoor() 참고
+        //   vehicle.getDoor().registerTrunkCallback { open -> trunk = open }
+        // TODO Vehicle SDK: 조향각 (튜토리얼의 Callback Steering Wheel Angle API)
+        //   vehicle.steeringWheel.registerAngleCallback { deg -> steering = deg }   // 부호(왼쪽 +) 확인!
+        // TODO FusedLocation SDK
+        //   fusedLocation.requestLocationUpdates { loc -> lat = loc.latitude; lon = loc.longitude }
+        // TODO NaviHelper SDK: 현재 도로 정보
+        //   naviHelper.registerRoadInfo { info -> roadName = info.name; roadType = ...; speedLimit = ... }
+        // TODO SpeechToText SDK: 사고 대응 중이거나 "사고 났어" 감지용
+        //   stt.startListening { text -> handler.post { onVoice(text) } }
+        if (useAdas) {
+            // TODO ADAS SDK (허용 시):
+            //   adas.subscribeLocalMap { onLaneDataChange(lanes) -> adas = mapLanes(lanes) }
+            //   adas.subscribeTrackedObjects { objs -> adas = adas?.copy(vehicles = mapObjects(objs)) }
+        }
+
+        handler.post(object : Runnable {
+            override fun run() {
+                onSnapshot(
+                    Snapshot(
+                        timeMs = System.currentTimeMillis(),
+                        speedKph = speedKph, speedLimitKph = speedLimit, roadType = roadType,
+                        brakePressed = brake, turnSignal = signal, hazardOn = hazard, trunkOpen = trunk, steeringDeg = steering,
+                        lat = lat, lon = lon, roadName = roadName,
+                        adas = if (useAdas) adas else null,
+                    )
+                )
+                handler.postDelayed(this, 1000)
+            }
+        })
+    }
+
+    override fun stop() {
+        handler.removeCallbacksAndMessages(null)
+        // TODO: 각 SDK release()
+    }
+}
