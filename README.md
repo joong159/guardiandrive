@@ -46,7 +46,8 @@ app/    차량 화면 · 음성 · SDK 연결
 
 ## 실행
 1. Pleos Connect 에뮬레이터 설치 (Android Studio → SDK Manager → SDK Update Sites에 Pleos 이미지 주소 추가 → API 34 Pleos Connect 이미지 → Automotive AVD, RAM 4GB)
-   - Mac: `.../connect-avd/2.x/crp-arm64-sys-img.xml` / Windows: `.../connect-avd/2.x/crp-sys-img.xml`
+   - Apple Silicon Mac: `.../connect-avd/2.x/crp-arm64-sys-img.xml` / Intel Mac·Windows: `.../connect-avd/2.x/crp-sys-img.xml`
+   - 빌드 없이 실행: `adb install -r apk/김현중_가디언드라이브_release.apk` → `adb shell am start -n ai.guardiandrive.app/.MainActivity`
 2. Android Studio에서 이 폴더 열기 → 에뮬레이터에서 `app` 실행
 3. 시나리오를 고르고 **시연 시작** (2배속 재생, 운전자 음성 포함)
 4. 판단 로직 검증: `./gradlew :core:runScenarioCheck`
