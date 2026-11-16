@@ -16,6 +16,7 @@
 | 사고 직후 음성 안내 | 한국도로공사 '비트박스' 순서. 비상등은 차량 데이터로 자동 확인. 고속도로는 가드레일 대피·1588-2504 안내 | TextToSpeech, SpeechToText, Vehicle(비상등), NaviHelper | ✅ 허용 SDK |
 | 무응답 시 비상 연락 | 20초간 대답이 없거나 "도와줘" → 가족에게 위치 전송 | FusedLocation (+외부 통신) | ⚠️ 외부 통신 허용 여부 문의 중 |
 | 사고 정리 리포트 | 직전 30초 속도·브레이크·차선 변경 기록 | Vehicle, FusedLocation, NaviHelper | ✅ 허용 SDK |
+| 실시간 차선별 사고 알림 | ITS 돌발정보에서 같은 도로·진행 방향 3km 앞 사고만 골라 "2km 앞 1차로 사고예요. 2차로 쪽으로 미리 옮기세요"처럼 막힌 차로와 옮길 차로를 한 번 안내. 피하려고 옮긴 차선 변경은 감점 안 함 | ITS 오픈API(외부 통신), FusedLocation, NaviHelper | ✅ 엔진·시연 / ⚠️ 실시간 연결은 인증키·외부 통신 허용 확인 후 |
 | 주행 후 도로 매너 점수 | 100점에서 감점/가점 | — | ✅ |
 | 방어 운전 레이더 | 앞 끼어들기, 갈지자 옆 차 경고 | ADAS | 🔜 향후 확장 (코드 완성, ADAS SDK가 공모전 목록에 없음) |
 | 1차선 저속 주행 안내 | 1차선 + 앞은 비고 뒤차가 붙은 상태로 60초 | ADAS | 🔜 향후 확장 |
@@ -32,10 +33,11 @@ core/   판단 엔진 (순수 Kotlin, PC에서 바로 테스트)
   GuardianEngine.kt     전체를 묶는 엔진 (앱은 이것만 사용)
   DrivingCheck.kt       내 운전 점검
   LaneChangeDetector.kt ADAS 없이 차선 변경 감지
+  RoadHazard.kt         실시간 차선별 사고 알림 (차단 차로 해석 · 앞쪽 사고 필터)
   DefensiveRadar.kt     방어 운전 레이더 (ADAS)
   Accident.kt           사고 감지 · 음성 의도 분류 · 단계별 안내
   Recorder.kt           직전 30초 기록 · 사고 리포트
-  sim/Scenarios.kt      시연 시나리오 11개
+  sim/Scenarios.kt      시연 시나리오 13개
 app/    차량 화면 · 음성 · SDK 연결
   MainActivity.kt       메인 화면 (가로: 왼쪽 레이더·오른쪽 안내 / 세로: 위아래)
   DrivingSource.kt      시연 모드 DemoSource (시나리오 재생, PT 시나리오는 비상등·트렁크를 실제 차량 값으로)
@@ -109,6 +111,7 @@ Pleos Connect에 기본 TTS 엔진이 없으면 음성 없이 화면 안내와 �
 - 화면 색: 차의 주간·야간 모드를 따라 **낮=밝은 배경, 밤=어두운 배경** 자동 전환 (전환돼도 진행 중인 안내는 서비스에 있어 유지)
 
 ## 변경 이력
+- 2026-11-16: 실시간 차선별 사고 알림 추가 (웹 프로토타입 lane-accident의 차로 해석을 Kotlin core로 이식). 시연 시나리오 "[기본] 앞쪽 차로 사고 미리 피하기"
 - 2026-11-06: 실제 차량 연결(VehicleReader·PleosSource), PT 전용 시나리오, 음성 인식, 세로 화면 대응,
   비상 연락 후 '사고 아님' 정정 안내, 대답 전 비상등을 응답으로 인정, 리포트에 30초 전 기록 추가,
   사고 대응 진행 단계 표시(진행 n/5). 이전 버전 백업: `../_backup/guardiandrive_20261106_1717`

@@ -34,6 +34,8 @@ class GuardianEngine(private val out: Output) {
 
     private val check = DrivingCheck()
     private val radar = DefensiveRadar()
+    private val hazard = LaneHazardWatch()
+    private var hazardDodgeUntil = 0L
     private val crash = AccidentDetector()
     private val recorder = Recorder()
     val trip = TripReport()
@@ -69,10 +71,13 @@ class GuardianEngine(private val out: Output) {
 
         if (crash.update(s)) { startAccident(s, "충돌 감지 (급감속 후 정지)"); return }
 
-        val events = check.process(s) + radar.process(s)
+        val events = check.process(s) + radar.process(s) + hazard.process(s)
         var laneChanged = false
         for (e in events) {
             recorder.add(e)
+            if (e.type == EventType.LANE_HAZARD_AHEAD) hazardDodgeUntil = s.timeMs + 120_000
+            // 앞쪽 사고를 피하려고 차로를 여러 번 옮긴 건 '잦은 차선 변경'으로 감점·안내하지 않음
+            if (e.type == EventType.LANE_WEAVING && s.timeMs <= hazardDodgeUntil) continue
             trip.add(e)
             if (e.type == EventType.LANE_CHANGE) laneChanged = true
             if (e.priority == Priority.URGENT) { alertDir = e.direction; alertUntil = s.timeMs + 5_000 }

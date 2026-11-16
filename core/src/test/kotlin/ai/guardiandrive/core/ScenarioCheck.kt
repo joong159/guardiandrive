@@ -25,6 +25,10 @@ fun main() {
     )
     for ((text, want) in cases) expect("\"$text\" → $want", VoiceIntent.classify(text) == want)
 
+    println("\n■ 차단 차로 해석 (ITS lanesBlocked)")
+    val lanes = mapOf("1차로" to listOf(1), "2-3" to listOf(2, 3), "2~3차로" to listOf(2, 3), "1,2" to listOf(1, 2), "" to emptyList(), null to emptyList())
+    for ((raw, want) in lanes) expect("\"$raw\" → $want", parseLanes(raw) == want)
+
     for ((title, build) in Scenarios.all) {
         val r = runScenario(build())
         println("\n■ $title")
@@ -72,6 +76,12 @@ fun main() {
                 expect("취소 뒤 주행 점검이 다시 동작", r.n(UNSIGNALED_LANE_CHANGE) == 1 && r.spoken.any { "깜빡이" in it.second })
             }
             "[기본] 가다 서다 정체 (오탐 방지)" -> expect("감점·사고 없음", r.score == 100 && r.steps.isEmpty() && r.spoken.isEmpty())
+            "[기본] 앞쪽 차로 사고 미리 피하기" -> {
+                val alerts = r.spoken.filter { "차로" in it.second && "앞" in it.second }
+                expect("앞쪽 1차로 사고만 한 번 안내", alerts.size == 1 && alerts[0].first == 10 && "1차로 사고예요" in alerts[0].second && "2차로 쪽으로" in alerts[0].second)
+                expect("뒤쪽 사고·다른 도로 공사는 안내 안 함", r.n(LANE_HAZARD_AHEAD) == 1)
+                expect("피하려고 옮긴 차선 변경은 감점 없음", r.n(LANE_CHANGE) == 3 && r.n(LANE_WEAVING) == 0 && r.score == 100 && r.spoken.size == 1)
+            }
             "[기본] 11분 매끄러운 주행" -> expect("10분째 칭찬", r.n(SMOOTH_STREAK) == 1 && r.spoken.singleOrNull()?.first == 600)
             "[향후 확장] 끼어들기 후 충돌" -> {
                 expect("끼어드는 순간 바로 경고", r.spoken.firstOrNull()?.let { it.first == 10 && "오른쪽 차가 앞으로" in it.second } == true)

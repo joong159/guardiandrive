@@ -58,6 +58,8 @@ data class Snapshot(
     val lon: Double? = null,
     val roadName: String? = null,
     val adas: AdasFrame? = null,
+    /** 새로 받은 ITS 돌발정보 목록 (1분마다). null이면 이전 목록 유지 */
+    val incidents: List<RoadIncident>? = null,
 )
 
 enum class EventType(val penalty: Int, val label: String) {
@@ -73,6 +75,7 @@ enum class EventType(val penalty: Int, val label: String) {
     CUT_IN_AHEAD(0, "앞차 끼어들기"),
     ERRATIC_NEIGHBOR(0, "주변 차 불안 주행"),
     ACCIDENT(0, "충돌 감지"),
+    LANE_HAZARD_AHEAD(0, "앞쪽 차로 사고"),
 }
 
 enum class Priority { NORMAL, URGENT }
