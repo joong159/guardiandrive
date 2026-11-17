@@ -80,7 +80,17 @@ fun main() {
                 val alerts = r.spoken.filter { "차로" in it.second && "앞" in it.second }
                 expect("앞쪽 1차로 사고만 한 번 안내", alerts.size == 1 && alerts[0].first == 10 && "1차로 사고예요" in alerts[0].second && "2차로 쪽으로" in alerts[0].second)
                 expect("뒤쪽 사고·다른 도로 공사는 안내 안 함", r.n(LANE_HAZARD_AHEAD) == 1)
+                expect("화면에 막힌 차로와 남은 거리를 계속 표시 (1차로, 가까워짐)",
+                    r.states[20].hazard?.incident?.lanesBlocked == listOf(1) &&
+                        r.states[20].hazard!!.distM > r.states[60].hazard!!.distM)
+                expect("사고 지점을 지나면 표시가 사라짐", r.states.last().hazard == null)
                 expect("피하려고 옮긴 차선 변경은 감점 없음", r.n(LANE_CHANGE) == 3 && r.n(LANE_WEAVING) == 0 && r.score == 100 && r.spoken.size == 1)
+            }
+            "[기본] 흐름보다 느린 주행 (정체 유발)" -> {
+                expect("60초 뒤 '주변보다 25킬로 느려요' 한 번 안내", r.spoken.size == 1 && r.spoken[0].first == 60 && "25킬로" in r.spoken[0].second)
+                expect("흐름 자체가 막히면 지적 안 함, 점수 95", r.n(SLOW_FLOW) == 1 && r.score == 95)
+                expect("화면에 흐름 차이 표시 (25km/h 느림)", r.states[30].flowGapKph == 25)
+                expect("리포트에 '흐름 방해 1회'", "흐름 방해: 1회" in r.tripSummary)
             }
             "[기본] 11분 매끄러운 주행" -> expect("10분째 칭찬", r.n(SMOOTH_STREAK) == 1 && r.spoken.singleOrNull()?.first == 600)
             "[향후 확장] 끼어들기 후 충돌" -> {

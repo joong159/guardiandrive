@@ -58,6 +58,8 @@ data class Snapshot(
     val lon: Double? = null,
     val roadName: String? = null,
     val adas: AdasFrame? = null,
+    /** 지금 도로 구간의 평균 흐름 속도 (ITS 소통정보·내비). 모르면 null */
+    val flowSpeedKph: Double? = null,
     /** 새로 받은 ITS 돌발정보 목록 (1분마다). null이면 이전 목록 유지 */
     val incidents: List<RoadIncident>? = null,
 )
@@ -68,6 +70,7 @@ enum class EventType(val penalty: Int, val label: String) {
     UNSIGNALED_LANE_CHANGE(3, "깜빡이 없는 차선 변경"),
     LANE_WEAVING(5, "잦은 차선 변경"),
     PASSING_LANE_HOGGING(10, "1차선 저속 주행"),
+    SLOW_FLOW(5, "흐름보다 느린 주행"),
     YIELDED(-3, "양보"),
     SMOOTH_STREAK(-2, "매끄러운 10분"),
     // 아래는 점수와 무관한 안전 이벤트

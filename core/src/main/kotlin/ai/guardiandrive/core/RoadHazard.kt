@@ -38,6 +38,13 @@ class LaneHazardWatch(private val maxAheadM: Double = 3_000.0) {
     private var prevLat: Double? = null
     private var prevLon: Double? = null
 
+    /** 화면 표시용: 앞쪽 사고와 남은 거리 */
+    data class Ahead(val incident: RoadIncident, val distM: Double)
+
+    /** 안내한 사고 중 아직 앞에 있는 가장 가까운 것 (지나가면 null) */
+    var active: Ahead? = null
+        private set
+
     fun process(s: Snapshot): List<Event> {
         s.incidents?.let { incidents = it }
         val lat = s.lat ?: return emptyList()
@@ -46,16 +53,19 @@ class LaneHazardWatch(private val maxAheadM: Double = 3_000.0) {
         prevLat = lat; prevLon = lon
         if (pLat == null || pLon == null || distanceM(pLat, pLon, lat, lon) < 1.0) return emptyList()
         val heading = bearingDeg(pLat, pLon, lat, lon)
+        fun aheadOf(inc: RoadIncident, maxAngle: Double) =
+            distanceM(lat, lon, inc.lat, inc.lon) <= maxAheadM && angleDiff(heading, bearingDeg(lat, lon, inc.lat, inc.lon)) <= maxAngle
 
-        return incidents.filter { inc ->
-            inc.id !in announced &&
-                sameRoad(s.roadName, inc.roadName) &&
-                distanceM(lat, lon, inc.lat, inc.lon) <= maxAheadM &&
-                angleDiff(heading, bearingDeg(lat, lon, inc.lat, inc.lon)) <= 45.0
+        val events = incidents.filter { inc ->
+            inc.id !in announced && sameRoad(s.roadName, inc.roadName) && aheadOf(inc, 45.0)
         }.map { inc ->
             announced += inc.id
             Event(EventType.LANE_HAZARD_AHEAD, s.timeMs, message(inc, distanceM(lat, lon, inc.lat, inc.lon)), Priority.URGENT)
         }
+        // 사고 지점에 가까워지면 방위각이 크게 흔들리므로 표시 유지는 90°까지 허용
+        active = incidents.filter { it.id in announced && aheadOf(it, 90.0) }
+            .map { Ahead(it, distanceM(lat, lon, it.lat, it.lon)) }.minByOrNull { it.distM }
+        return events
     }
 
     companion object {

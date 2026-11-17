@@ -29,6 +29,10 @@ class DrivingCheck(private val cfg: Config = Config()) {
         val smoothStreakSec: Int = 600,
         val brakeDebounceSec: Int = 10,
         val alertCooldownSec: Int = 180,
+        // 흐름보다 느린 주행: 주변 평균이 60km/h 이상인데 20km/h 넘게 느린 상태가 60초 이어지면
+        val slowFlowMinFlowKph: Double = 60.0,
+        val slowFlowGapKph: Double = 20.0,
+        val slowFlowWindowSec: Int = 60,
     )
 
     private val lanes = LaneChangeDetector()
@@ -48,6 +52,12 @@ class DrivingCheck(private val cfg: Config = Config()) {
     private var awaitingYieldSince: Long? = null
 
     private var smoothSince: Long? = null
+    private var slowSince: Long? = null
+    private var lastSlowMs = Long.MIN_VALUE / 2
+
+    /** 주변 흐름보다 몇 km/h 느린지 (+ = 느림). 흐름 속도를 모르면 null */
+    var flowGapKph: Int? = null
+        private set
 
     /** 차선 번호를 알면(ADAS) 추월차로 주행 시간 */
     var passingLaneSeconds = 0
@@ -71,6 +81,7 @@ class DrivingCheck(private val cfg: Config = Config()) {
         lanes.update(s)?.let { lc -> onLaneChange(s, lc, out) }
         checkBrake(s, out)
         checkHogging(s, passing, out)
+        checkSlowFlow(s, out)
         checkYieldTimeout(s)
         checkSmooth(s, out)
 
@@ -156,6 +167,21 @@ class DrivingCheck(private val cfg: Config = Config()) {
             awaitingYieldSince = s.timeMs
             hogSince = null; hogSamples = 0; hogTail = 0
             out += Event(EventType.PASSING_LANE_HOGGING, s.timeMs, Messages.hogging(s.speedKph.toInt()))
+        }
+    }
+
+    private fun checkSlowFlow(s: Snapshot, out: MutableList<Event>) {
+        val flow = s.flowSpeedKph
+        flowGapKph = flow?.let { (it - s.speedKph).toInt() }
+        // 브레이크·깜빡이 중이거나 앞이 막혀 흐름 자체가 느리면 운전자 탓이 아님
+        val slow = flow != null && flow >= cfg.slowFlowMinFlowKph && flow - s.speedKph > cfg.slowFlowGapKph &&
+            s.speedKph >= cfg.congestionKph && !s.brakePressed && s.turnSignal == null
+        if (!slow) { slowSince = null; return }
+        if (slowSince == null) slowSince = s.timeMs
+        if (s.timeMs - slowSince!! >= cfg.slowFlowWindowSec * 1000L && s.timeMs - lastSlowMs >= cfg.alertCooldownSec * 1000L) {
+            lastSlowMs = s.timeMs
+            slowSince = null
+            out += Event(EventType.SLOW_FLOW, s.timeMs, Messages.slowFlow(flowGapKph!!))
         }
     }
 

@@ -29,6 +29,10 @@ class GuardianEngine(private val out: Output) {
         val accidentStep: AccidentGuide.Step?,
         val accidentDone: List<AccidentGuide.Step>,
         val alertDirection: Direction?,
+        /** 앞쪽 사고 (안내한 것 중 가장 가까운 것). 지나가면 null */
+        val hazard: LaneHazardWatch.Ahead? = null,
+        /** 주변 흐름보다 몇 km/h 느린지 (+ = 느림) */
+        val flowGapKph: Int? = null,
     )
     enum class Mode { DRIVING, ACCIDENT }
 
@@ -129,6 +133,8 @@ class GuardianEngine(private val out: Output) {
                 accidentStep = guide.step,
                 accidentDone = guide.completed.toList(),
                 alertDirection = alertDir,
+                hazard = hazard.active,
+                flowGapKph = check.flowGapKph,
             )
         )
     }
@@ -160,13 +166,18 @@ class TripReport {
         appendLine("- 급제동: ${count(EventType.HARD_BRAKE) + count(EventType.PHANTOM_BRAKE)}회")
         appendLine("- 깜빡이 없는 차선 변경: ${count(EventType.UNSIGNALED_LANE_CHANGE)}회")
         appendLine("- 잦은 차선 변경: ${count(EventType.LANE_WEAVING)}회")
+        appendLine("- 흐름보다 느린 주행: ${count(EventType.SLOW_FLOW)}회")
         if (adasAvailable) {
             appendLine("- 1차선 저속 주행: ${count(EventType.PASSING_LANE_HOGGING)}회 (추월차로 ${passingLaneSec / 60}분 ${passingLaneSec % 60}초)")
             appendLine("- 위험 차량 경고: ${count(EventType.CUT_IN_AHEAD) + count(EventType.ERRATIC_NEIGHBOR)}회")
         }
         appendLine("- 양보: ${count(EventType.YIELDED)}회 / 매끄러운 10분: ${count(EventType.SMOOTH_STREAK)}회")
+        appendLine("→ 내가 만든 흐름 방해: ${flowBlocking}회 (급제동·잦은 차선 변경·흐름보다 느린 주행·1차선 저속)")
         append("한 줄 팁: ").append(tip())
     }
+
+    /** 뒤차 흐름을 끊어 정체를 만드는 행동 합계 */
+    val flowBlocking get() = listOf(EventType.HARD_BRAKE, EventType.PHANTOM_BRAKE, EventType.LANE_WEAVING, EventType.SLOW_FLOW, EventType.PASSING_LANE_HOGGING).sumOf { count(it) }
 
     private fun tip(): String {
         val worst = events.filter { it.type.penalty > 0 }.groupingBy { it.type }.eachCount().maxByOrNull { it.value }?.key
@@ -174,6 +185,7 @@ class TripReport {
             EventType.HARD_BRAKE, EventType.PHANTOM_BRAKE -> "앞차와 거리를 넉넉히 두면 급제동이 줄어요."
             EventType.UNSIGNALED_LANE_CHANGE -> "깜빡이는 뒤차와의 약속이에요. 차선 바꾸기 3초 전에 켜 보세요."
             EventType.LANE_WEAVING -> "차선을 자주 바꿔도 도착 시간은 거의 같아요."
+            EventType.SLOW_FLOW -> "주변보다 많이 느리면 뒤로 정체가 생겨요. 흐름에 맞추거나 오른쪽 차로를 이용해 보세요."
             EventType.PASSING_LANE_HOGGING -> "추월이 끝나면 바로 오른쪽 차선으로 돌아가 보세요."
             else -> "지금처럼만 달리면 완벽해요!"
         }

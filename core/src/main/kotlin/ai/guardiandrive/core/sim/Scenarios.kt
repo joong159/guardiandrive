@@ -108,13 +108,22 @@ object Scenarios {
         val ahead = RoadIncident("SAMPLE1", 37.2656 + 0.018, 127.0286, "경부고속도로", "교통사고", "부분차단", parseLanes("1차로"))
         val behind = RoadIncident("SAMPLE2", 37.2400, 127.0286, "경부고속도로", "교통사고", "부분차단", parseLanes("2-3"))
         val other = RoadIncident("SAMPLE3", 37.2700, 127.0290, "세종대로", "공사", "부분차단", parseLanes("4"))
-        return (0..100).map { t ->
+        return (0..120).map { t ->  // 100초쯤 사고 지점을 지나감
             val steer = when (t) { 20, 21, 50, 51, 80, 81 -> -2.0; 22, 52, 82 -> 1.5; else -> 0.0 }
             val signal = if (t in 19..22 || t in 49..52 || t in 79..82) Direction.RIGHT else null
             // 1분마다 같은 목록이 다시 들어와도 다시 안내하지 않아야 함
             val incidents = if (t == 10 || t == 70) listOf(ahead, behind, other) else null
             Tick(hw(t, 80.0, signal = signal, steer = steer).copy(incidents = incidents))
         }
+    }
+
+    /**
+     * [기본] 내가 정체를 만드는 중: 주변 흐름 100km/h인데 나 혼자 75km/h → 60초 뒤 한 번 안내.
+     * 70초부터 흐름 자체가 40km/h로 막히면(정체) 느려도 지적하지 않음.
+     */
+    fun slowerThanFlow(): List<Tick> = (0..130).map { t ->
+        val jam = t >= 70
+        Tick(hw(t, if (jam) 30.0 else 75.0).copy(flowSpeedKph = if (jam) 40.0 else 100.0))
     }
 
     // ---------- ADAS ----------
@@ -165,6 +174,7 @@ object Scenarios {
         "[기본] 가다 서다 정체 (오탐 방지)" to ::stopAndGo,
         "[기본] 11분 매끄러운 주행" to ::smoothDrive,
         "[기본] 앞쪽 차로 사고 미리 피하기" to ::laneHazardAhead,
+        "[기본] 흐름보다 느린 주행 (정체 유발)" to ::slowerThanFlow,
         // ADAS SDK가 공모전 허용 목록에 없어 '향후 확장'으로 소개 (코드는 완성)
         "[향후 확장] 끼어들기 후 충돌" to ::cutInCrash,
         "[향후 확장] 갈지자 옆 차" to ::erraticNeighbor,

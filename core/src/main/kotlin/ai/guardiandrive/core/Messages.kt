@@ -10,6 +10,7 @@ object Messages {
     fun unsignaled(d: Direction) = "${d.korean}으로 차선을 바꿀 땐 깜빡이를 먼저 켜 주세요."
     fun weaving(n: Int) = "최근 2분 동안 차선을 ${n}번 바꿨어요. 한 차선을 유지해도 도착 시간은 거의 같아요."
     fun hogging(speed: Int) = "1차선은 추월차로예요. 지금 ${speed}킬로로 달리고 있고 뒤에 차가 따라와요. 여유 될 때 오른쪽으로 옮겨볼까요?"
+    fun slowFlow(gap: Int) = "주변 차들보다 ${gap}킬로 느리게 달리고 있어요. 뒤로 정체가 생길 수 있으니 흐름에 맞추거나 오른쪽 차로로 옮겨 볼까요?"
     fun yielded() = "양보 감사해요. 뒤차들 흐름이 풀렸어요."
     fun smooth() = "10분째 흐름을 아주 잘 타고 계세요."
 

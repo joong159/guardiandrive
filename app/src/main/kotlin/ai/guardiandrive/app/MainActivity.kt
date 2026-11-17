@@ -292,6 +292,7 @@ class MainActivity : AppCompatActivity(), GuardianService.Listener {
         radar.adasAvailable = s.adasAvailable
         radar.vehicles = service?.lastVehicles ?: emptyList()
         radar.alert = s.alertDirection
+        radar.hazard = if (s.mode == GuardianEngine.Mode.DRIVING) s.hazard else null
         val accident = s.mode == GuardianEngine.Mode.ACCIDENT
         accidentButtons.visibility = if (accident) View.VISIBLE else View.GONE
         voice.setContinuous(accident)
@@ -320,9 +321,22 @@ class MainActivity : AppCompatActivity(), GuardianService.Listener {
         if (alertDir != null) {
             badge.text = "주의"; badge.setTextColor(c.danger)
             title.text = "${alertDir.korean} 차를 조심하세요"
+        } else if (s.hazard != null) {
+            val hz = s.hazard!!
+            val inc = hz.incident
+            val km = "%.1fkm".format(hz.distM / 1000)
+            badge.text = "앞쪽 ${inc.eventType} · $km"; badge.setTextColor(c.danger)
+            title.text = when {
+                inc.fullyBlocked -> "전면 통제 · $km 앞"
+                inc.lanesBlocked.isEmpty() -> "${inc.eventType} · $km 앞"
+                else -> "${inc.lanesBlocked.joinToString(",")}차로 막힘 · $km 앞"
+            }
         } else {
-            badge.text = "지켜보는 중 · 도로 매너 ${s.score}점"; badge.setTextColor(c.ok)
-            title.text = s.lane?.let { "${it}차선 주행 중" } ?: "주변이 안정적이에요"
+            val gap = s.flowGapKph
+            val slow = gap != null && gap >= 20
+            badge.text = if (slow) "흐름보다 ${gap}km/h 느림 · 도로 매너 ${s.score}점" else "지켜보는 중 · 도로 매너 ${s.score}점"
+            badge.setTextColor(if (slow) c.danger else c.ok)
+            title.text = s.lane?.let { "${it}차선 주행 중" } ?: if (slow) "뒤로 정체가 생길 수 있어요" else "주변이 안정적이에요"
         }
         body.text = s.lastSpeech ?: "위험한 순간이 오면 미리 알려드릴게요"
     }
